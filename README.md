@@ -436,12 +436,12 @@ X-OriginalArrivalTime: 11 Nov 2018 05:52:33.0221 (UTC) FILETIME=[BD7A5F50:01D479
 
 控制台运行：
 
-![控制台运行](3.png)
+![控制台运行](images/3.png)
 
 开始线上测试：
 
-![开始测试](1.png)
+![开始测试](images/1.png)
 
 测试线上结果：
 
-![测试结果](2.png)
+![测试结果](images/2.png)
