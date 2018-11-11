@@ -137,7 +137,7 @@ YWJj5paH5pys5YaF5a65MTIz
 要签名先搞定`body`的`hash计算`，`body`怎么获取？一堆附件、一堆转码...... `MailMessage`、`SmtpClient`没给获取`body`的支持。然后找到一个库 [DKIM.Net](https://github.com/dmcgiv/DKIM.Net)，他里面实现了获取整个邮件内容的方法，简单调用一下`MailMessage`的私有方法搞定。
 
 然后遇到了`DKIM.Net`也没有搞定的问题，对于带附件`Attachments`或`AlternateViews`的邮件，由于每次获取的邮件内容因为`boundary`分隔符（边界）不一致导致签名无效，`DKIM.Net`是直接粗暴的拒绝`multipart`格式邮件的签名的。然后翻阅[.NET Framework MimeMultiPart源码](https://referencesource.microsoft.com/#System/net/System/Net/mail/MimeMultiPart.cs,2615996f074ad959,references)找到了以下代码：
-```
+``` c#
 internal string GetNextBoundary() {
 	int b = Interlocked.Increment(ref boundary) - 1;
 	string boundaryString = "--boundary_" + b.ToString(CultureInfo.InvariantCulture)+"_"+Guid.NewGuid().ToString(null, CultureInfo.InvariantCulture);
@@ -234,7 +234,7 @@ QAB"
 测试需要有一个域名并且配置好相应ns DKIM的 txt记录。
 
 本次测试实例代码：
-```
+``` c#
 var rsa = new RSA.RSA(@"-----BEGIN RSA PRIVATE KEY-----
 私钥内容
 -----END RSA PRIVATE KEY-----
