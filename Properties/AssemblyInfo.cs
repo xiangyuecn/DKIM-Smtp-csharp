@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的常规信息通过以下
 // 特性集控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("DKIM-Smtp-csharp")]
-[assembly: AssemblyDescription("https://github.com/xiangyuecn/DKIM-Smtp-csharp")]
+[assembly: AssemblyTitle("https://github.com/xiangyuecn/DKIM-Smtp-csharp")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("DKIMSmtp.Properties")]
+[assembly: AssemblyProduct("DKIM-Smtp-csharp")]
 [assembly: AssemblyCopyright("Copyright ©  2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
