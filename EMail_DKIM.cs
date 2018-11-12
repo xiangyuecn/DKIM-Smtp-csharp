@@ -51,7 +51,8 @@ namespace DKIMSmtp {
 		public Result Sign(MailMessage message) {
 			var rtv = new Result();
 
-			message.Headers.Add(DKIMTimeKeyT, DateTime.Now.ToUniversalTime().ToString("r").Replace("GMT", "+000"));
+			message.Headers.Set(DKIMTimeKeyT, DateTime.Now.ToUniversalTime().ToString("r").Replace("GMT", "+000"));
+			message.Headers.Remove(EMail_DKIM.DKIMTimeKeyTS);
 
 			var rawRes = EMail_DKIM_MailMessageText.ToRAW(message);
 			if (rawRes.IsError) {
@@ -100,7 +101,19 @@ namespace DKIMSmtp {
 
 			return rtv;
 		}
+		/// <summary>
+		/// 验证邮件eml文件内容DKIM签名是否正确，没有签名或签名错误返回false
+		/// </summary>
+		public bool Verify(string eml) {
+			return Verify(EMail_DKIM_RAW_EML.ParseOrNull(eml));
+		}
+		/// <summary>
+		/// 验证邮件eml文件内容DKIM签名是否正确，没有签名或签名错误返回false
+		/// </summary>
 		public bool Verify(EMail_DKIM_RAW_EML eml) {
+			if (eml == null) {
+				return false;
+			}
 			var sign = eml.GetHeader(DKIMKey);
 			if (sign == null) {
 				return false;
@@ -179,7 +192,7 @@ namespace DKIMSmtp {
 			var headers = (NameValueCollection)attr.GetValue(this);
 			if (headers.AllKeys.Contains(EMail_DKIM.DKIMTimeKeyT)) {
 				headers.Set("Date", headers[EMail_DKIM.DKIMTimeKeyT]);
-				var val=headers[EMail_DKIM.DKIMTimeKeyTS];
+				var val = headers[EMail_DKIM.DKIMTimeKeyTS];
 				if (val == null) {
 					headers[EMail_DKIM.DKIMTimeKeyTS] = "1";
 				} else {
@@ -533,6 +546,12 @@ namespace DKIMSmtp {
 				rtv.error("email内容获取器未初始化成功");
 				return rtv;
 			}
+
+			var headers = message.Headers;
+			//备份hook head
+			var hT = headers[EMail_DKIM.DKIMTimeKeyT];
+			var hTS = headers[EMail_DKIM.DKIMTimeKeyTS];
+
 			try {
 				using (var internalStream = new ClosableMemoryStream()) {
 					object mailWriter = MailWriterFactory(internalStream);
@@ -540,6 +559,7 @@ namespace DKIMSmtp {
 					if (Send2 != null) {
 						Send2(message, mailWriter, false);
 					} else if (Send3 != null) {
+						//由smtp.DeliveryFormat决定的allowUnicode为false
 						Send3(message, mailWriter, false, false);
 					}
 
@@ -564,6 +584,12 @@ namespace DKIMSmtp {
 			} catch (Exception e) {
 				rtv.fail("无法获取整个email内容：" + e.Message, e.ToString());
 				return rtv;
+			} finally {
+				//还原hook head
+				if (hTS != null) {
+					headers.Set(EMail_DKIM.DKIMTimeKeyT, hT);
+					headers.Set(EMail_DKIM.DKIMTimeKeyTS, hTS);
+				}
 			}
 		}
 

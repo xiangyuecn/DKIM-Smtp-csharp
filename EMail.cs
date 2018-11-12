@@ -214,7 +214,7 @@ namespace DKIMSmtp {
 		/// <summary>
 		/// 发送之前处理方法，返回false取消发送
 		/// </summary>
-		public Func<SmtpClient, bool> OnSendBefore { get; set; }
+		public Func<MailMessage, SmtpClient, bool> OnSendBefore { get; set; }
 		/// <summary>
 		/// 发送邮件
 		/// </summary>
@@ -276,24 +276,18 @@ namespace DKIMSmtp {
 					smtp.Credentials = new NetworkCredential(User, Password);
 				}
 				smtp.Timeout = timeout;
+				//统一用7位，不然不支持的服务器没法统一进行签名
+				smtp.DeliveryFormat = SmtpDeliveryFormat.SevenBit;
 
 				if (OnSendBefore != null) {
-					if (!OnSendBefore(smtp)) {
+					if (!OnSendBefore(msg, smtp)) {
 						rtv.error("邮件发送前被取消");
 						return rtv;
 					}
 				}
 
-				var task = smtp.SendMailAsync(msg);
-				var isout = !task.Wait(timeout);
-				if (isout || task.Exception != null) {
-					smtp.SendAsyncCancel();
-					if (isout) {
-						rtv.error("邮件发送超时");
-						return rtv;
-					}
-					throw task.Exception;
-				}
+				//不能用异步方法，.Net SendAsync方法有bug，本应通过IsUnicodeSupported=ServerSupportsEai&&DeliveryFormat来判断是否支持utf-8，然而异步方法手贱直接用ServerSupportsEai来判断，导致DeliveryFormat无法控制编码方式！！表现为：支持SMTPUTF8的服务器100%不编码，不支持的100%编码。
+				smtp.Send(msg);
 
 				return rtv;
 			} catch (AggregateException ex) {

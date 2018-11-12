@@ -110,6 +110,8 @@ YWJj5paH5pys5YaF5a65MTIz
 
 主要提供`TimeoutMillisecond`,`ClientName`设置，一堆添加附件的方法`AddAttachment(x,x,x)`，最后`Send`发送邮件。
 
+*【注】.Net框架的`SmtpClient`中异步方法有Bug，我们默认设置中文要进行编码，但如果服务器支持SMTPUTF8，那么就会发原始的中文过去，详情见下面的发现记录。*
+
 ### EMail_Unit.cs
 封装的一些通用方法，如：base64。都是比较周边的功能。
 
@@ -181,6 +183,73 @@ so 这个问题hook `System.Net.Mail.Message.PrepareHeaders` 可以解决，每�
 《[自己写的一个可以hook .net方法的库](https://bbs.csdn.net/topics/391958344)》：发现DotNetDetour
 
 《[DKIM 测试](http://www.appmaildev.com/cn/dkim)》：测试签名，测试前提：需要有一个自己的域名，并配置邮箱域名的DKIM公钥
+
+
+
+## 一次.Net框架Bug的发现记录
+
+DKIM签名功能写好后测试了很多个邮箱，都能通过验证。但隔一天测试却发现没有一个邮箱通过验证，并且下载下来的邮件源码body部分和本地额外保存的一份有很大出入，表现在邮件主题、附件文件名，本地是Base64编码，下载下来的是中文汉字。
+
+首先发现问题的是outlook邮箱，他们家会告诉你DKIM签名是否正确，本地直接发送邮件没有一个通过签名验证的，但通过邮箱服务器发送却都是好的。对比直发和服务器发的邮件源码区别，发现邮箱服务器的没有中文，直发的里面中文的地方全是中文。
+
+看样子中文部分有问题，然后试着把邮件里面的中文全部换成英文，发送，又可以了！想了一下昨天测试好像全部是英文，因为邮件内容写了一次基本上就不会改了。
+
+到了这时候，感觉还以为是outlook服务器进行了什么处理，难道邮箱服务器发邮件用的协议和我们用Smtp协议发邮件的协议有出入？但并没有找到什么相关的资料。然后测试了QQ邮箱、网易yeah.net，并且抓了一下包看了一下，发现切换`SmtpClient.DeliveryFormat`参数，使用`SevenBit`（此值为默认值）（中文会被编码）QQ邮箱没问题，网易有问题；使用`International`（中文不编码）QQ邮箱有问题，网易反倒没问题。
+
+抓包发现使用`SevenBit`时，中文部分给QQ邮箱发送的是Base64编码，给网易发送的是中文内容，本地保存的是Base64编码（和签名时使用到的邮件内容一致）；使用`International`时正好相反。签名的数据和发送的数据不一致，导致了不管怎么改这个参数，都有一个是错的。
+
+为什么会这样？查阅.Net源码，一路看编码部分，发现基本上每个涉及到字符编码、发送的地方都会传入`allowUnicode`参数，所有`allowUnicode` `=` `SmtpClient.IsUnicodeSupported()`，但有唯一的一处例外：
+
+我们先看看IsUnicodeSupported方法：
+``` C#
+//https://referencesource.microsoft.com/#System/net/System/Net/mail/SmtpClient.cs,382
+
+private bool IsUnicodeSupported() {
+	if (DeliveryMethod == SmtpDeliveryMethod.Network) {
+		//注意看这里的ServerSupportsEai和SmtpDeliveryFormat
+		return (ServerSupportsEai && (DeliveryFormat == SmtpDeliveryFormat.International));
+	}
+	else {
+		return (DeliveryFormat == SmtpDeliveryFormat.International);
+	}
+}
+```
+
+SmtpDeliveryFormat我们可以赋值，我们来找找`ServerSupportsEai`是在哪里取值的：
+``` C#
+//https://referencesource.microsoft.com/#System/net/System/Net/mail/smtpconnection.cs,280
+
+internal void ParseExtensions(string[] extensions) {
+	...
+	//如果服务器支持SMTPUTF8，那么ServerSupportsEai=true
+	else if (String.Compare(extension, 0, "SMTPUTF8", 0, 8, StringComparison.OrdinalIgnoreCase) == 0) {
+		((SmtpPooledStream)pooledStream).serverSupportsEai = true;
+	}
+	...
+}
+```
+
+最后看看这处唯一的例外：
+``` C#
+//https://referencesource.microsoft.com/#System/net/System/Net/mail/SmtpClient.cs,892
+
+void SendMailCallback(IAsyncResult result) {
+	...
+	//注意这个ServerSupportsEai，这个位置是allowUnicode参数
+	message.BeginSend(writer, DeliveryMethod != SmtpDeliveryMethod.Network,
+							ServerSupportsEai, new AsyncCallback(SendMessageCallback), result.AsyncState);
+	...
+}
+```
+
+`SendMailCallback`是`SmtpClient.SendAsync`（`SendMailAsync`会调用`SendAsync`）调用的，so，异步操作已经完全不受我们设置的`SmtpDeliveryFormat`参数控制了，中文转不转码完全看对方邮件服务器心情！！！函数中的`ServerSupportsEai`应该换成统一的`IsUnicodeSupported`，Bug就解决。
+
+但，我们没法去改这个地方，那么上Hook吧，把`SmtpClient.ServerSupportsEai`Hook一下，如果是`SendMailCallback`调用的就`return IsUnicodeSupported()`。
+
+但，[DotNetDetour](https://github.com/bigbaldy1128/DotNetDetour)库可以Hook `String.Length`属性，但没法Hook`SmtpClient.ServerSupportsEai`属性，不知道啥原因。最后调试烦了放弃了。
+
+结尾使用`SmtpClient.Send`没有这种问题，就把异步操作全部换成了同步，代码还少了不少。Bug修理完毕，给outlook、QQ、网易发英文、中文邮件都能通过DKIM签名验证。
+
 
 
 ## 附
