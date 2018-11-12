@@ -196,6 +196,10 @@ namespace DKIMSmtp {
 						msg.Attachments.Add(item);
 					}
 				}
+
+				if (OnBuildMessage != null) {
+					OnBuildMessage(msg);
+				}
 			} catch (Exception e) {
 				rtv.fail("无法生成邮件内容：" + e.Message, e.ToString());
 				return rtv;
@@ -203,6 +207,10 @@ namespace DKIMSmtp {
 			return rtv;
 		}
 
+		/// <summary>
+		/// 生成message时处理，可以用来修改message对象
+		/// </summary>
+		public Action<MailMessage> OnBuildMessage { get; set; }
 		/// <summary>
 		/// 发送之前处理方法，返回false取消发送
 		/// </summary>
