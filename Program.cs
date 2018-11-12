@@ -91,7 +91,7 @@ B4JqZMGSBWkvkoGZOoTEr5UF7/EUeZIjux3wm2wYXA==
 				var dir = "d:/.email测试保存邮件文件夹";
 				Directory.CreateDirectory(dir);
 
-				email.OnSendBefore = (smtp) => {
+				email.OnSendBefore = (msg, smtp) => {
 					smtp.DeliveryMethod = SmtpDeliveryMethod.SpecifiedPickupDirectory;
 					smtp.PickupDirectoryLocation = dir;
 					return true;
