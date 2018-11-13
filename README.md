@@ -215,7 +215,7 @@ private bool IsUnicodeSupported() {
 }
 ```
 
-SmtpDeliveryFormat我们可以赋值，我们来找找`ServerSupportsEai`是在哪里取值的：
+`DeliveryFormat`我们可以赋值，我们来找找`ServerSupportsEai`是在哪里取值的：
 ``` C#
 //https://referencesource.microsoft.com/#System/net/System/Net/mail/smtpconnection.cs,280
 
@@ -242,7 +242,7 @@ void SendMailCallback(IAsyncResult result) {
 }
 ```
 
-`SendMailCallback`是`SmtpClient.SendAsync`（`SendMailAsync`会调用`SendAsync`）调用的，so，异步操作已经完全不受我们设置的`SmtpDeliveryFormat`参数控制了，中文转不转码完全看对方邮件服务器心情！！！函数中的`ServerSupportsEai`应该换成统一的`IsUnicodeSupported`，Bug就解决。
+`SendMailCallback`是`SmtpClient.SendAsync`（`SendMailAsync`会调用`SendAsync`）调用的，so，异步操作已经完全不受我们设置的`DeliveryFormat`参数控制了，中文转不转码完全看对方邮件服务器心情！！！函数中的`ServerSupportsEai`应该换成统一的`IsUnicodeSupported`，Bug就解决。
 
 但，我们没法去改这个地方，那么上Hook吧，把`SmtpClient.ServerSupportsEai`Hook一下，如果是`SendMailCallback`调用的就`return IsUnicodeSupported()`。
 
