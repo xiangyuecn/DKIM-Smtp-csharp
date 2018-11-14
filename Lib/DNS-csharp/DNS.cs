@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DNS {
@@ -65,6 +66,19 @@ namespace DNS {
 		protected override string GetVal(object obj) {
 			return Marshal.PtrToStringUni(((PTR)obj).pNameHost);
 		}
+		static private Regex exp = new Regex(@"^(\d+)\.(\d+)\.(\d+)\.(\d+)$");
+		protected override Result<string> TransformDomain(string domain) {
+			var m = exp.Match(domain);
+			if (m.Success) {
+				domain = m.Groups[4].Value
+					+ "." + m.Groups[3].Value
+					+ "." + m.Groups[2].Value
+					+ "." + m.Groups[1].Value
+					+ ".in-addr.arpa";
+			}
+
+			return base.TransformDomain(domain);
+		}
 	}
 	public class DNS_TXT : DNSBase {
 		[StructLayout(LayoutKind.Sequential)]
@@ -84,6 +98,14 @@ namespace DNS {
 	public abstract class DNSBase {
 		abstract protected Type RecordType { get; }
 		abstract protected string GetVal(object obj);
+		/// <summary>
+		/// 如果此查询需要对域名进行特殊处理，就处理一下
+		/// </summary>
+		protected virtual Result<string> TransformDomain(string domain) {
+			var rtv = new Result<string>();
+			rtv.Value = domain;
+			return rtv;
+		}
 
 		static private Dictionary<string, int> Types = new Dictionary<string, int>();
 		/// <summary>
@@ -134,6 +156,13 @@ namespace DNS {
 				return rtv;
 			}
 			try {
+				var tdRes = TransformDomain(domain);
+				if (tdRes.IsError) {
+					tdRes.errorTo(rtv);
+					return rtv;
+				}
+				domain = tdRes.Value;
+
 				IntPtr ptr1 = IntPtr.Zero;
 				IntPtr ptr2 = IntPtr.Zero;
 				Record rec;
