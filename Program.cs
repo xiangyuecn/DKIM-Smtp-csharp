@@ -33,7 +33,8 @@ B4JqZMGSBWkvkoGZOoTEr5UF7/EUeZIjux3wm2wYXA==
 
 			Action<Action<EMail>> create = (call) => {
 				//投递邮件给qq服务器
-				using (var email = new EMail("mx1.qq.com", 25)) {
+				using (var email = new EMail()) {//new EMail("mx1.qq.com", 25)，默认会自动解析收件箱的mx记录，得到smtp服务器地址，如果是要通过发件服务器来发送，则需要手动填写为发件服务器地址
+
 					//使用签名
 					email.TryUseDKIM(dkim);
 

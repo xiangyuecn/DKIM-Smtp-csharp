@@ -1,4 +1,5 @@
-﻿using DotNetDetour;
+﻿using DNS;
+using DotNetDetour;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,10 +15,10 @@ namespace DKIMSmtp {
 		static EMail() {
 			Monitor.Install();
 		}
-		static private readonly int defaultTimeout = 10509;
+		static private readonly int defaultTimeout = 15509;
 
 		/// <summary>
-		/// 发送超时，默认普通邮件10秒，带附件的根据附件大小计算超时，最小10秒
+		/// 发送超时，默认普通邮件15秒，带附件的根据附件大小计算超时，最小15秒
 		/// </summary>
 		public int TimeoutMillisecond { get; set; }
 		/// <summary>
@@ -51,11 +52,11 @@ namespace DKIMSmtp {
 
 
 		/// <summary>
-		/// 用smtp地址(port一般25)和账号来创建email
+		/// 用smtp地址(不填从唯一一个收件地址获取mx记录)、port(一般25)和账号来创建email
 		/// 如果pwd为空不使用账号密码来发邮件
 		/// fromEmail不填写默认为userOrFromEmail
 		/// </summary>
-		public EMail(string smtpHost, int smtpPort, string userOrFromEmail = "", string pwd = "", string fromEmail = null) {
+		public EMail(string smtpHost = "", int smtpPort = 25, string userOrFromEmail = "", string pwd = "", string fromEmail = null) {
 			TimeoutMillisecond = defaultTimeout;
 			ClientName = "EMail_SMTP";
 			SmtpSSL = false;
@@ -220,12 +221,12 @@ namespace DKIMSmtp {
 		/// </summary>
 		public Result Send(string title, string content, bool isHtml = true) {
 			var rtv = new Result();
-			if (String.IsNullOrEmpty(SmtpHost)) {
-				rtv.error("必须提供发送邮件的smtp地址");
-				return rtv;
-			}
 			if (_ToEmails.Count == 0) {
 				rtv.error("需要设置发送到的邮件地址");
+				return rtv;
+			}
+			if (String.IsNullOrEmpty(SmtpHost) && _ToEmails.Count != 1) {
+				rtv.error("不提供smtp地址时只能提供一个收件地址");
 				return rtv;
 			}
 
@@ -267,6 +268,15 @@ namespace DKIMSmtp {
 						return rtv;
 					}
 					break;
+				}
+
+				if (String.IsNullOrEmpty(SmtpHost)) {
+					var hostRes = new DNS_MX().QueryOne(msg.To[0].Host);
+					if (hostRes.IsError) {
+						hostRes.errorTo(rtv, "发送邮件失败：无法解析收件服务器");
+						return rtv;
+					}
+					SmtpHost = hostRes.Value;
 				}
 
 				smtp.Host = SmtpHost;

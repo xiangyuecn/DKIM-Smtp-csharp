@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="EMail.cs" />
     <Compile Include="EMail_DKIM.cs" />
+    <Compile Include="Lib\DNS-csharp\DNS.cs" />
     <Compile Include="Lib\DotNetDetour\AssemblyUtil.cs" />
     <Compile Include="Lib\DotNetDetour\DetourFactory.cs" />
     <Compile Include="Lib\DotNetDetour\DetourWays\NativeDetourFor32Bit.cs" />

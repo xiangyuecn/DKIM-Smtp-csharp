@@ -27,7 +27,7 @@ clone下来用vs应该能够直接打开，经目测看起来没什么卵用的�
 var dkim = new EMail_DKIM("domain.com", "dkimSelector", new RSA.RSA(/*"-----BEGIN RSA PRIVATE KEY-----....", true*/ 1024));
 
 //通过EMail类来操作发邮件
-using (var email = new EMail("mx1.qq.com", 25)) {
+using (var email = new EMail()) {//new EMail("mx1.qq.com", 25)，默认会自动解析收件箱的mx记录，得到smtp服务器地址，如果是要通过发件服务器来发送，则需要手动填写为发件服务器地址
 	//使用签名
 	email.TryUseDKIM(dkim);
 
@@ -114,6 +114,9 @@ YWJj5paH5pys5YaF5a65MTIz
 
 ### EMail_Unit.cs
 封装的一些通用方法，如：base64。都是比较周边的功能。
+
+### /Lib/DNS-csharp目录
+这个目录里面是我的[DNS-csharp](https://github.com/xiangyuecn/DNS-csharp)仓库代码，用来解析邮箱域名的MX记录。
 
 ### /Lib/RSA-csharp目录
 这个目录里面是我的[RSA-csharp](https://github.com/xiangyuecn/RSA-csharp)仓库代码，用来解析PEM秘钥对的。
