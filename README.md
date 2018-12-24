@@ -251,8 +251,11 @@ void SendMailCallback(IAsyncResult result) {
 
 但，[DotNetDetour](https://github.com/bigbaldy1128/DotNetDetour)库可以Hook `String.Length`属性，但没法Hook`SmtpClient.ServerSupportsEai`属性，不知道啥原因。最后调试烦了放弃了。
 
+> 后面发现是Hook错了地方，换到最深层次调用地方，一抓一个准。找出`SmtpClient.ServerSupportsEai`最结果最终是从`SmtpConnection.ServerSupportsEai`得来的，也许是C#编译后把整个调用过程都优化掉了，变成了取值的地方直接调用的`SmtpConnection`中的方法，导致Hook前面的方法都是不会被执行，Hook `SmtpConnection.ServerSupportsEai`就行了。
+
 结尾使用`SmtpClient.Send`没有这种问题，就把异步操作全部换成了同步，代码还少了不少。Bug修理完毕，给outlook、QQ、网易发英文、中文邮件都能通过DKIM签名验证。
 
+> 注：[此Bug已提交给.NET Core Libraries (CoreFX)并合并到了主线上](https://github.com/dotnet/corefx/commit/94b1f1eae84fd4823cfa2bbdde6fc87c46b57908)，应该在.Net Core 3.0上能够得到修复。
 
 
 ## 附
